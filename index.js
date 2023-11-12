@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
 
@@ -25,10 +25,68 @@ async function run() {
   try {
     const menuCollection = client.db("bistroDB").collection("menu");
     const reviewCollection = client.db("bistroDB").collection("review");
+    const cartCollection = client.db("bistroDB").collection("carts");
+    const usersCollection = client.db("bistroDB").collection("users");
+
+    // users related apis
+    app.get('/users', async(req, res) =>{
+      const result = await usersCollection.find().toArray()
+      res.send(result)
+    })
+
+    app.post('/users', async (req, res) =>{
+      const user = req.body;
+      const query = {email: user.email}
+      const existingUser = await usersCollection.findOne(query);
+      console.log('existingUser',existingUser);
+      if(existingUser){
+        return res.send({message: 'User already logged in'})
+      }
+      const result = await usersCollection.insertOne(user)
+      res.send(result) 
+    })
+
+    app.patch('users/admin/:id', async (req, res) =>{
+      const id = req.params.id;
+      const filter = {_id : new ObjectId(id)};
+      const updateDoc = {
+        $set: {
+          role: `admin`
+        },
+      };
+    })
+
+
+    // fetch menu data
     app.get('/menu', async (req, res) =>{
         const result = await menuCollection.find().toArray();
         res.send(result)
     })
+// post cart item data
+    app.post('/carts', async (req, res) =>{
+      const item = req.body;
+      const result = await cartCollection.insertOne(item)
+      res.send(result)
+    })
+
+    app.get('/carts', async (req, res) =>{
+      const email = req.query.email;
+      if(!email){
+        res.send([])
+      }
+      const query = {email:email}
+      const result = await cartCollection.find(query).toArray();
+      res.send(result)
+    })
+
+    app.delete('/carts/:id', async (req, res)=>{
+      const id = req.params.id;
+      const query = {_id : new ObjectId(id)};
+      const result = await cartCollection.deleteOne(query)
+      res.send(result)
+    })
+
+    // fetch review data
     app.get('/review', async (req, res) =>{
         const result = await reviewCollection.find().toArray();
         res.send(result)
